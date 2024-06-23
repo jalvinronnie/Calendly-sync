@@ -32,12 +32,27 @@ export const authorizeCalendly = async (req, res) => {
 
 export const calendlyCallback = async (req, res) => {
   const { code, state } = req.query;
-  const { userId, backToUrl } = JSON.parse(state);
+
+  // Log the received parameters
+  logger.info('Received query parameters', { code, state });
+
+  if (!code || !state) {
+    logger.error('Missing code or state in callback request', { code, state });
+    return res.status(400).send({ message: 'Invalid callback parameters' });
+  }
+
+  let userId, backToUrl;
+
+  try {
+    ({ userId, backToUrl } = JSON.parse(state));
+  } catch (err) {
+    logger.error('Failed to parse state parameter', { state, error: err.message });
+    return res.status(400).send({ message: 'Invalid state parameter' });
+  }
 
   logger.info('calendly oauth callback received', { userId, code, backToUrl });
 
   try {
-    
     const token = await calendlyAuthManager.getToken(code);
 
     // Fetch the Calendly user ID
@@ -61,9 +76,8 @@ export const calendlyCallback = async (req, res) => {
     return res.redirect(backToUrl);
   } catch (err) {
     logger.error('calendly oauth callback failed', { userId, error: err.message });
-    return res.status(500).send({ message: 'internal server error' });
+    return res.status(500).send({ message: 'Internal server error' });
   }
-
 };
 
 export const authorize = async (req, res) => {
